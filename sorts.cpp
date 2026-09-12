@@ -25,7 +25,7 @@ void merge(std::vector<int>& A, int start, int mid, int end,
            std::vector<int>& buffer, unsigned long long& comparisons) {
             int i = start;
             int j = mid;
-            int k = end;
+            int k = start;
 
             while (i < mid && j < end) {
                 comparisons++;
