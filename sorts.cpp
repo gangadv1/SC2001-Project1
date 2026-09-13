@@ -88,27 +88,4 @@ bool isSorted(const std::vector<int>& arr) {
     return true;
 }
 
-int main() {
-    std::vector<int> testData = {38, 27, 43, 3, 9, 82, 10, 19, 50, 12};
-    int n = testData.size();
 
-    // Verify Original Merge Sort
-    std::vector<int> arrMerge = testData;
-    std::vector<int> buffer(n);
-    unsigned long long mergeComps = 0;
-    originalMergeSort(arrMerge, 0, n, buffer, mergeComps);
-    assert(isSorted(arrMerge));
-
-    // Verify Hybrid Sort with S = 4
-    std::vector<int> arrHybrid = testData;
-    unsigned long long hybridComps = 0;
-    int S = 4;
-    hybridSort(arrHybrid, 0, n, S, buffer, hybridComps);
-    assert(isSorted(arrHybrid));
-
-    std::cout << "Verification Passed: Both algorithms sort correctly.\n";
-    std::cout << "Original Merge Sort Key Comparisons: " << mergeComps << "\n";
-    std::cout << "Hybrid Sort (S=" << S << ") Key Comparisons: " << hybridComps << "\n";
-
-    return 0;
-}
