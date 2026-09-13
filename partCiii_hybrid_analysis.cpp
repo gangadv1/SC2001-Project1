@@ -36,10 +36,12 @@ int main() {
     mt19937 rng(12345);
 
     cout << "C(iii): Finding optimal S" << endl;
-    cout << "n,Best S,Minimum Key Comparisons" << endl;
+    cout << "n,S,Key Comparisons" << endl;
 
     for (int n : sizes) {
 
+        // Generate ONE dataset for this n
+        // and reuse it for every S
         vector<int> originalData = generateRandomArray(n, x, rng);
 
         int bestS = 0;
@@ -54,13 +56,21 @@ int main() {
 
             hybridSort(data, 0, n, S, buffer, comparisons);
 
+            // Output every result
+            cout << n << "," << S << "," << comparisons << endl;
+
+            // Track the best S
             if (comparisons < bestComparisons) {
                 bestComparisons = comparisons;
                 bestS = S;
             }
         }
 
-        cout << n << "," << bestS << "," << bestComparisons << endl;
+        cout << "Best for n=" << n
+             << ": S=" << bestS
+             << ", comparisons=" << bestComparisons << endl;
+
+        cout << endl;
     }
 
     return 0;
