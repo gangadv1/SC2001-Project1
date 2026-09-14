@@ -20,17 +20,19 @@ def plot_size_vs_comparisons(csv_filename):
     print("Saved: graph_size_vs_comparisons.png")
 
 def plot_s_vs_comparisons(csv_filename):
-
+    
     df = pd.read_csv(csv_filename)
-
+    
     plt.figure(figsize=(10, 6))
-    plt.plot(df['S_Value'], df['Comparisons'], marker='s', linestyle='-', color='r')
-
-    plt.title('Number of Key Comparisons vs. Threshold S (Fixed n)', fontsize=14)
+    
+    # changed to show the difference more significantly
+    plt.plot(df['S_Value'].astype(str), df['Comparisons'], marker='s', linestyle='-', color='r')
+    
+    plt.title('Number of Key Comparisons vs. Threshold S (Fixed n = 1,000,000)', fontsize=14)
     plt.xlabel('Threshold (S)', fontsize=12)
     plt.ylabel('Number of Key Comparisons', fontsize=12)
     plt.grid(True, linestyle='--', alpha=0.7)
-
+    
     plt.savefig('graph_s_vs_comparisons.png')
     plt.show()
     print("Saved: graph_s_vs_comparisons.png")
