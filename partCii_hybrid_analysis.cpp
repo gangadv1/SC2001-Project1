@@ -20,34 +20,41 @@ int main() {
     const int n = 1000000;
     const int x = 10000000;
 
-    // Granular integer values up to 32, then extending up to 256
+    // Exact tested values of S from the reference graph[cite: 5]
     vector<int> S_values;
     for (int s = 1; s <= 32; s++) {
         S_values.push_back(s);
     }
-    vector<int> extended = {40, 50, 64, 80, 96, 128, 160, 200, 256};
-    S_values.insert(S_values.end(), extended.begin(), extended.end());
+    S_values.push_back(40);
+    S_values.push_back(50);
+    S_values.push_back(64);
 
     mt19937 rng(12345);
 
-    // Generate ONE dataset and reuse it across all S runs
+    // Reuse the exact same array across all S values
     vector<int> originalData = generateRandomArray(n, x, rng);
     vector<int> buffer(n);
 
-    // CSV Header matching plot_c2.py
     cout << "S,Key Comparisons,CPU Time (ms)" << endl;
 
     for (int S : S_values) {
-        vector<int> data = originalData;
+        // Average over 3 runs to stabilize runtime spikes while maintaining true behavior
+        const int TRIALS = 3;
+        double totalTime = 0;
         unsigned long long comparisons = 0;
 
-        auto start = high_resolution_clock::now();
-        hybridSort(data, 0, n, S, buffer, comparisons);
-        auto end = high_resolution_clock::now();
+        for (int t = 0; t < TRIALS; t++) {
+            vector<int> data = originalData;
+            comparisons = 0;
 
-        double durationMs = duration_cast<nanoseconds>(end - start).count() / 1e6;
+            auto start = high_resolution_clock::now();
+            hybridSort(data, 0, n, S, buffer, comparisons);
+            auto end = high_resolution_clock::now();
 
-        cout << S << "," << comparisons << "," << durationMs << endl;
+            totalTime += duration_cast<nanoseconds>(end - start).count() / 1e6;
+        }
+
+        cout << S << "," << comparisons << "," << (totalTime / TRIALS) << endl;
     }
 
     return 0;
