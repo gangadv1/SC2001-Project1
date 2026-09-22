@@ -1,9 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <chrono>
+#include <ctime>
 #include <iomanip>
-#include <cfloat>
 #include "sorts.cpp"
 
 using namespace std;
@@ -21,8 +20,10 @@ vector<int> generateRandomArray(int n, int x, mt19937& rng) {
 }
 
 int main() {
+
     const int x = 10000000;
 
+    // Different input sizes required for C(iii)
     vector<int> sizes = {
         100000,
         500000,
@@ -31,23 +32,22 @@ int main() {
         10000000
     };
 
-    // Test EVERY S from 2 to 128
+    // Test every possible threshold in this range
     vector<int> S_values;
 
     for (int S = 2; S <= 128; S++) {
         S_values.push_back(S);
     }
 
-    // Number of datasets used for each S
+    // Repeat each experiment to reduce timing variation
     const int TRIALS = 5;
 
-    // Stores normalized performance of each S
-    // across all input sizes
+    // Used to determine one overall optimal S
     vector<double> overallScores(S_values.size(), 0.0);
 
     cout << fixed << setprecision(3);
 
-    cout << "C(iii): Finding Optimal S" << endl;
+    cout << "C(iii): Finding Optimal S Using CPU Time" << endl;
     cout << "============================================" << endl;
 
     for (int n : sizes) {
@@ -55,14 +55,13 @@ int main() {
         cout << endl;
         cout << "n = " << n << endl;
         cout << "--------------------------------------------" << endl;
-        cout << "S,Average Key Comparisons,Average Time (ms)" << endl;
+        cout << "S,Average Key Comparisons,Average CPU Time (ms)" << endl;
 
-        // -------------------------------------------------
-        // Generate the datasets ONCE for this n.
+        // --------------------------------------------------
+        // Generate datasets ONCE for this n.
         //
-        // Every S will therefore be tested on exactly
-        // the same input arrays.
-        // -------------------------------------------------
+        // Every S is tested using exactly the same datasets.
+        // --------------------------------------------------
 
         vector<vector<int>> datasets;
 
@@ -75,36 +74,33 @@ int main() {
             );
         }
 
-        // Store results for this input size
         vector<double> averageTimes;
         vector<unsigned long long> averageComparisons;
 
-        // -------------------------------------------------
-        // Test every S
-        // -------------------------------------------------
+        // --------------------------------------------------
+        // Test every S from 2 to 128
+        // --------------------------------------------------
 
         for (int S : S_values) {
 
-            double totalTime = 0.0;
-
+            double totalCPUTime = 0.0;
             unsigned long long totalComparisons = 0;
 
             for (int trial = 0; trial < TRIALS; trial++) {
 
-                // Copy happens BEFORE timing
+                // Copy the original dataset BEFORE timing
                 vector<int> data = datasets[trial];
 
-                // Buffer allocation also happens BEFORE timing
+                // Allocate buffer BEFORE timing
                 vector<int> buffer(n);
 
                 unsigned long long comparisons = 0;
 
-                // -----------------------------------------
-                // Time ONLY Hybrid Sort
-                // -----------------------------------------
+                // ------------------------------------------
+                // Measure CPU time ONLY for Hybrid Sort
+                // ------------------------------------------
 
-                auto start =
-                    chrono::steady_clock::now();
+                clock_t start = clock();
 
                 hybridSort(
                     data,
@@ -115,36 +111,35 @@ int main() {
                     comparisons
                 );
 
-                auto end =
-                    chrono::steady_clock::now();
+                clock_t end = clock();
 
-                double elapsed =
-                    chrono::duration<double, milli>(
-                        end - start
-                    ).count();
+                double cpuTime =
+                    1000.0 *
+                    static_cast<double>(end - start) /
+                    CLOCKS_PER_SEC;
 
-                totalTime += elapsed;
-
+                totalCPUTime += cpuTime;
                 totalComparisons += comparisons;
             }
 
-            double avgTime =
-                totalTime / TRIALS;
+            double avgCPUTime =
+                totalCPUTime / TRIALS;
 
             unsigned long long avgComparisons =
                 totalComparisons / TRIALS;
 
-            averageTimes.push_back(avgTime);
+            averageTimes.push_back(avgCPUTime);
             averageComparisons.push_back(avgComparisons);
 
             cout << S << ","
                  << avgComparisons << ","
-                 << avgTime << endl;
+                 << avgCPUTime << endl;
         }
 
-        // -------------------------------------------------
-        // Find fastest S for THIS input size
-        // -------------------------------------------------
+        // --------------------------------------------------
+        // Find optimal S for THIS n
+        // based on minimum average CPU time
+        // --------------------------------------------------
 
         int bestIndex = 0;
 
@@ -159,24 +154,24 @@ int main() {
 
         cout << endl;
 
-        cout << "Fastest S for n = "
+        cout << "Optimal S for n = "
              << n
              << ": S = "
              << S_values[bestIndex]
              << " ("
              << bestTime
-             << " ms)"
+             << " ms CPU time)"
              << endl;
 
-        // -------------------------------------------------
-        // Normalize performance for this n.
+        // --------------------------------------------------
+        // Normalize CPU times.
         //
-        // Fastest S gets score 1.0.
-        // Others get > 1.0.
+        // Best S for this n gets score 1.0.
+        // Other S values get scores > 1.0.
         //
-        // This allows different n values to contribute
-        // equally to the final optimal S.
-        // -------------------------------------------------
+        // This allows every input size to contribute equally
+        // when finding one overall S.
+        // --------------------------------------------------
 
         for (int i = 0; i < (int)S_values.size(); i++) {
 
@@ -185,9 +180,9 @@ int main() {
         }
     }
 
-    // -------------------------------------------------
-    // Find ONE overall optimal S
-    // -------------------------------------------------
+    // --------------------------------------------------
+    // Find ONE overall optimal S across all input sizes
+    // --------------------------------------------------
 
     int overallBestIndex = 0;
 
@@ -207,7 +202,7 @@ int main() {
          << S_values[overallBestIndex]
          << endl;
 
-    cout << "Average normalized performance score = "
+    cout << "Average Normalized CPU-Time Score = "
          << overallScores[overallBestIndex] / sizes.size()
          << endl;
 
