@@ -1,133 +1,226 @@
 // optimal_S_experiment.cpp
-// Part (c)(iii): Determine the empirically optimal S for BEST PERFORMANCE
-// (CPU time), not just minimum key comparisons.
+// Part (c)(iii): Determine optimal S based on execution time.
 //
-// Why this matters: key comparisons ignore recursion/function-call overhead,
-// merge-buffer copying, and cache effects. Those costs are real and dominate
-// CPU time when S is very small (too many tiny recursive calls/merges).
-// This program measures actual CPU time across a range of S values, on
-// several dataset sizes, and reports the S that minimizes time -- which is
-// typically in the 8-16 range even though comparison-count is minimized at
-// a much smaller S.
-//
-// Compile with optimizations on -- a -O0 debug build inflates function-call
-// overhead artificially and will skew your "optimal S":
-//   g++ -O2 -std=c++17 optimal_S_experiment.cpp -o optimal_S_experiment
-//
-// Run:
-//   ./optimal_S_experiment > results_S_sweep.csv
+// For each input size:
+// 1. Generate 5 fixed random datasets.
+// 2. Test every S on the SAME datasets.
+// 3. Measure Hybrid Sort execution time.
+// 4. Record average key comparisons and average execution time.
 
 #include <iostream>
 #include <vector>
 #include <random>
 #include <chrono>
 #include <algorithm>
-#include <cstdint>
 
 using Clock = std::chrono::high_resolution_clock;
 
-// ---------- Hybrid sort (same algorithm as your main implementation) ----------
+// ---------------- Insertion Sort ----------------
 
-// Insertion sort on arr[low..high], counting comparisons.
-static void insertionSort(std::vector<int>& arr, int low, int high, long long& comparisons) {
-    for (int i = low + 1; i <= high; ++i) {
-        int key = arr[i];
+void insertionSort(std::vector<int>& A, int start, int end,
+                   unsigned long long& comparisons) {
+
+    for (int i = start + 1; i < end; i++) {
+        int key = A[i];
         int j = i - 1;
-        while (j >= low) {
-            ++comparisons;
-            if (arr[j] > key) {
-                arr[j + 1] = arr[j];
-                --j;
+
+        while (j >= start) {
+            comparisons++;
+
+            if (A[j] > key) {
+                A[j + 1] = A[j];
+                j--;
             } else {
                 break;
             }
         }
-        arr[j + 1] = key;
+
+        A[j + 1] = key;
     }
 }
 
-static void merge(std::vector<int>& arr, std::vector<int>& temp,
-                   int low, int mid, int high, long long& comparisons) {
-    int i = low, j = mid + 1, k = low;
-    while (i <= mid && j <= high) {
-        ++comparisons;
-        if (arr[i] <= arr[j]) temp[k++] = arr[i++];
-        else temp[k++] = arr[j++];
+// ---------------- Merge ----------------
+
+void merge(std::vector<int>& A, int start, int mid, int end,
+           std::vector<int>& buffer,
+           unsigned long long& comparisons) {
+
+    int i = start;
+    int j = mid;
+    int k = start;
+
+    while (i < mid && j < end) {
+        comparisons++;
+
+        if (A[i] <= A[j]) {
+            buffer[k++] = A[i++];
+        } else {
+            buffer[k++] = A[j++];
+        }
     }
-    while (i <= mid) temp[k++] = arr[i++];
-    while (j <= high) temp[k++] = arr[j++];
-    for (int x = low; x <= high; ++x) arr[x] = temp[x];
+
+    while (i < mid)
+        buffer[k++] = A[i++];
+
+    while (j < end)
+        buffer[k++] = A[j++];
+
+    for (int index = start; index < end; index++) {
+        A[index] = buffer[index];
+    }
 }
 
-static void hybridSort(std::vector<int>& arr, std::vector<int>& temp,
-                        int low, int high, int S, long long& comparisons) {
-    if (high - low + 1 <= S) {
-        insertionSort(arr, low, high, comparisons);
+// ---------------- Hybrid Sort ----------------
+
+void hybridSort(std::vector<int>& A, int start, int end, int S,
+                std::vector<int>& buffer,
+                unsigned long long& comparisons) {
+
+    if (end - start <= S) {
+        insertionSort(A, start, end, comparisons);
         return;
     }
-    int mid = low + (high - low) / 2;
-    hybridSort(arr, temp, low, mid, S, comparisons);
-    hybridSort(arr, temp, mid + 1, high, S, comparisons);
-    merge(arr, temp, low, mid, high, comparisons);
+
+    int mid = start + (end - start) / 2;
+
+    hybridSort(A, start, mid, S, buffer, comparisons);
+    hybridSort(A, mid, end, S, buffer, comparisons);
+
+    merge(A, start, mid, end, buffer, comparisons);
 }
 
-// ---------- Experiment driver ----------
+// ---------------- Generate Random Array ----------------
 
-static std::vector<int> generateRandomArray(int n, int maxVal, std::mt19937& rng) {
-    std::uniform_int_distribution<int> dist(1, maxVal);
-    std::vector<int> arr(n);
-    for (int i = 0; i < n; ++i) arr[i] = dist(rng);
-    return arr;
+std::vector<int> generateRandomArray(int n, int maxValue,
+                                     std::mt19937& rng) {
+
+    std::uniform_int_distribution<int> dist(1, maxValue);
+
+    std::vector<int> data(n);
+
+    for (int i = 0; i < n; i++) {
+        data[i] = dist(rng);
+    }
+
+    return data;
 }
+
+// ---------------- Main Experiment ----------------
 
 int main() {
-    // Dataset sizes to test S over. Include your largest size(s) since that's
-    // what your report / part (d) cares about; a couple of smaller sizes lets
-    // you confirm the optimal S is roughly stable across n.
-    std::vector<int> sizes = {1'000'000, 5'000'000, 10'000'000};
 
-    // Sweep S densely at the low end (where the interesting crossover is)
-    // and more sparsely at the high end.
+    // Different input sizes required for C(iii)
+    std::vector<int> sizes = {
+        1000000,
+        5000000,
+        10000000
+    };
+
+    // Candidate S values
     std::vector<int> sValues;
-    for (int s = 2; s <= 64; s += 2) sValues.push_back(s);
-    for (int s = 70; s <= 200; s += 10) sValues.push_back(s);
 
-    const int TRIALS = 5;          // average over several runs to smooth out noise
-    const int MAX_VAL = 1'000'000; // range for random integers, per the spec
+    for (int S = 2; S <= 64; S += 2) {
+        sValues.push_back(S);
+    }
 
-    std::mt19937 seedRng(12345); // fixed seed so results are reproducible
+    for (int S = 70; S <= 200; S += 10) {
+        sValues.push_back(S);
+    }
 
-    std::cout << "n,S,avg_comparisons,avg_cpu_time_ms\n";
+    const int DATASETS = 5;
+
+    // Same maximum random value used in Part B
+    const int MAX_VALUE = 10000000;
+
+    // Fixed seed for reproducibility
+    const unsigned int BASE_SEED = 12345;
+
+    std::cout
+        << "n,S,avg_comparisons,avg_execution_time_ms\n";
 
     for (int n : sizes) {
+
+        // ------------------------------------------------
+        // Generate the datasets ONCE for this n.
+        //
+        // Every S below will therefore be tested on
+        // exactly the same five arrays.
+        // ------------------------------------------------
+
+        std::vector<std::vector<int>> datasets;
+
+        datasets.reserve(DATASETS);
+
+        for (int d = 0; d < DATASETS; d++) {
+
+            std::mt19937 rng(BASE_SEED + d);
+
+            datasets.push_back(
+                generateRandomArray(n, MAX_VALUE, rng)
+            );
+        }
+
+        // ------------------------------------------------
+        // Test every S
+        // ------------------------------------------------
+
         for (int S : sValues) {
-            long long totalComparisons = 0;
+
+            unsigned long long totalComparisons = 0;
+
             double totalTimeMs = 0.0;
 
-            for (int t = 0; t < TRIALS; ++t) {
-                // Use the SAME underlying data across S values within a trial
-                // index, generated deterministically, so comparisons across
-                // S are apples-to-apples.
-                std::mt19937 rng(seedRng() + t);
-                std::vector<int> arr = generateRandomArray(n, MAX_VAL, rng);
-                std::vector<int> temp(n);
-                long long comparisons = 0;
+            for (int d = 0; d < DATASETS; d++) {
+
+                // Copy the SAME original dataset.
+                // Copying happens BEFORE timing starts,
+                // so it is not included in sorting time.
+
+                std::vector<int> A = datasets[d];
+
+                std::vector<int> buffer(n);
+
+                unsigned long long comparisons = 0;
+
+                // -------- Start timer --------
 
                 auto start = Clock::now();
-                hybridSort(arr, temp, 0, n - 1, S, comparisons);
+
+                hybridSort(
+                    A,
+                    0,
+                    n,
+                    S,
+                    buffer,
+                    comparisons
+                );
+
                 auto end = Clock::now();
 
-                double ms = std::chrono::duration<double, std::milli>(end - start).count();
-                totalTimeMs += ms;
-                totalComparisons += comparisons;
+                // -------- End timer --------
 
-                // Sanity check (cheap, only checks a few points)
-                // for (int i = 1; i < n; ++i) assert(arr[i-1] <= arr[i]);
+                double elapsedMs =
+                    std::chrono::duration<double, std::milli>(
+                        end - start
+                    ).count();
+
+                totalTimeMs += elapsedMs;
+
+                totalComparisons += comparisons;
             }
 
-            std::cout << n << "," << S << ","
-                      << (totalComparisons / TRIALS) << ","
-                      << (totalTimeMs / TRIALS) << "\n";
+            double averageTime =
+                totalTimeMs / DATASETS;
+
+            unsigned long long averageComparisons =
+                totalComparisons / DATASETS;
+
+            std::cout
+                << n << ","
+                << S << ","
+                << averageComparisons << ","
+                << averageTime
+                << "\n";
         }
     }
 
