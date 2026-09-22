@@ -54,7 +54,10 @@ void merge(std::vector<int>& A, int start, int mid, int end,
 // Original Merge Sort(for Part(d), to be used for comparison)
 void originalMergeSort(std::vector<int>& A, int start, int end, 
                       std::vector<int>& buffer, unsigned long long& comparisons) {
-    if (end - start <= 1) {
+    if (end - start <= S || end - start <= 1) {
+        if (end - start > 1) {
+            insertionSort(A, start, end, comparisons);
+        }
         return;
     }
 
