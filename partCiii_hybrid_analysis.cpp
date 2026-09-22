@@ -8,6 +8,7 @@
 
 using namespace std;
 
+// Generate an array of n random integers in the range [1, x]
 vector<int> generateRandomArray(int n, int x, mt19937& rng) {
     uniform_int_distribution<int> dist(1, x);
 
@@ -22,8 +23,11 @@ vector<int> generateRandomArray(int n, int x, mt19937& rng) {
 
 int main() {
     const int x = 10000000;
-    const int trials = 5;
 
+    // More trials to reduce timing noise
+    const int trials = 10;
+
+    // Different input sizes for studying the optimal threshold
     vector<int> sizes = {
         100000,
         500000,
@@ -32,17 +36,14 @@ int main() {
         10000000
     };
 
-    // Focus on the practical small-threshold region.
+    // Refined search around the efficient threshold region
     vector<int> S_values = {
-        2, 4, 8, 12, 16, 20, 24, 28,
-        32, 36, 40, 44, 48, 52, 56, 60, 64
+        16, 20, 24, 28, 32, 36, 40, 44, 48
     };
-
-    mt19937 rng(12345);
 
     cout << fixed << setprecision(6);
 
-    cout << "C(iii): Hybrid Sort performance across S" << endl;
+    cout << "C(iii): Refined Hybrid Sort threshold analysis" << endl;
     cout << "Trials per configuration = " << trials << endl;
     cout << endl;
 
@@ -58,10 +59,9 @@ int main() {
             double totalCPUTime = 0.0;
 
             /*
-             * Reset the RNG for every S.
-             *
-             * This ensures that S=2, S=4, S=8, etc. are all
-             * tested on exactly the same sequence of arrays.
+             * Reset the random generator for every S.
+             * Therefore, every threshold is tested using
+             * exactly the same sequence of input arrays.
              */
             mt19937 testRng(12345 + n);
 
@@ -104,7 +104,8 @@ int main() {
             cout << n << ","
                  << S << ","
                  << averageComparisons << ","
-                 << averageCPUTime << endl;
+                 << averageCPUTime
+                 << endl;
 
             if (averageCPUTime < bestTime) {
                 bestTime = averageCPUTime;
