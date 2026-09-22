@@ -4,7 +4,7 @@ import numpy as np
 
 
 # ============================================================
-# C(i): Key Comparisons vs Array Size
+# C(i): Effect of Input Size
 # ============================================================
 
 def plot_size_vs_comparisons(csv_filename):
@@ -25,8 +25,7 @@ def plot_size_vs_comparisons(csv_filename):
     n = df['Array_Size'].to_numpy()
     theoretical = n * np.log2(n)
 
-    # Scale theoretical curve so its magnitude can be compared
-    # visually with the empirical comparison counts
+    # Scale theoretical curve for visual comparison
     scale_factor = (
         df['Comparisons'].iloc[-1] /
         theoretical[-1]
@@ -42,7 +41,7 @@ def plot_size_vs_comparisons(csv_filename):
     )
 
     plt.title(
-        'Key Comparisons vs. Array Size (Fixed S = 32)',
+        'Effect of Input Size on Key Comparisons (Fixed S = 32)',
         fontsize=14
     )
 
@@ -51,7 +50,6 @@ def plot_size_vs_comparisons(csv_filename):
 
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.legend()
-
     plt.tight_layout()
 
     plt.savefig(
@@ -66,24 +64,24 @@ def plot_size_vs_comparisons(csv_filename):
 
 # ============================================================
 # C(ii): Effect of Threshold S
-# Overall Trend + Detailed Staircase
 # ============================================================
 
 def plot_s_vs_comparisons(
     overall_csv_filename,
-    staircase_csv_filename
+    consecutive_csv_filename
 ):
     overall_df = pd.read_csv(overall_csv_filename)
-    staircase_df = pd.read_csv(staircase_csv_filename)
+    consecutive_df = pd.read_csv(consecutive_csv_filename)
 
     fig, (ax1, ax2) = plt.subplots(
         1,
         2,
-        figsize=(15, 6)
+        figsize=(16, 6)
     )
 
     # --------------------------------------------------------
-    # LEFT: Overall trend
+    # LEFT:
+    # Broad range of S values
     # --------------------------------------------------------
 
     ax1.plot(
@@ -94,8 +92,9 @@ def plot_s_vs_comparisons(
     )
 
     ax1.set_title(
-        'Overall Trend (S = 2 to 512)',
-        fontsize=13
+        'Effect of Threshold S on Key Comparisons\n'
+        '(S = 2–512, Fixed n = 1,000,000)',
+        fontsize=12
     )
 
     ax1.set_xlabel('Threshold S', fontsize=11)
@@ -111,25 +110,27 @@ def plot_s_vs_comparisons(
     )
 
     # --------------------------------------------------------
-    # RIGHT: Detailed staircase
+    # RIGHT:
+    # Consecutive S values showing repeated comparison counts
     # --------------------------------------------------------
 
     ax2.step(
-        staircase_df['S_Value'],
-        staircase_df['Comparisons'],
+        consecutive_df['S_Value'],
+        consecutive_df['Comparisons'],
         where='post',
         linewidth=2
     )
 
     ax2.scatter(
-        staircase_df['S_Value'],
-        staircase_df['Comparisons'],
+        consecutive_df['S_Value'],
+        consecutive_df['Comparisons'],
         s=10
     )
 
     ax2.set_title(
-        'Detailed Staircase (S = 1 to 128)',
-        fontsize=13
+        'Key Comparisons for Consecutive Threshold Values\n'
+        '(S = 1–128, Fixed n = 1,000,000)',
+        fontsize=12
     )
 
     ax2.set_xlabel('Threshold S', fontsize=11)
@@ -144,10 +145,11 @@ def plot_s_vs_comparisons(
         alpha=0.5
     )
 
+    # Overall title for both C(ii) graphs
     fig.suptitle(
-        'Effect of Threshold S on Key Comparisons '
-        '(Fixed n = 1,000,000)',
-        fontsize=15
+        'Effect of Threshold S on Key Comparisons at Fixed Input Size',
+        fontsize=15,
+        fontweight='bold'
     )
 
     plt.tight_layout()
@@ -176,20 +178,20 @@ def plot_showdown(csv_filename):
         figsize=(12, 5)
     )
 
-    # --------------------------------------------------------
     # Key comparisons
-    # --------------------------------------------------------
-
     bars1 = ax1.bar(
         df['Algorithm'],
         df['Comparisons']
     )
 
     ax1.set_title(
-        'Key Comparisons (10 Million Integers)'
+        'Comparison of Key Comparisons',
+        fontsize=12
     )
 
-    ax1.set_ylabel('Comparisons')
+    ax1.set_ylabel(
+        'Number of Key Comparisons'
+    )
 
     ax1.bar_label(
         bars1,
@@ -201,22 +203,19 @@ def plot_showdown(csv_filename):
         fontweight='bold'
     )
 
-    # --------------------------------------------------------
     # CPU time
-    # --------------------------------------------------------
-
     bars2 = ax2.bar(
         df['Algorithm'],
         df['CPU_Time_ms']
     )
 
     ax2.set_title(
-        'CPU Time (10 Million Integers)'
+        'Comparison of CPU Time',
+        fontsize=12
     )
 
-    ax2.set_ylabel('Time (ms)')
+    ax2.set_ylabel('CPU Time (ms)')
 
-    # Start at zero so the visual comparison is fair
     ax2.set_ylim(
         0,
         df['CPU_Time_ms'].max() * 1.15
@@ -232,11 +231,19 @@ def plot_showdown(csv_filename):
         fontweight='bold'
     )
 
+    fig.suptitle(
+        'Original Merge Sort vs Hybrid Sort '
+        '(n = 10,000,000)',
+        fontsize=15,
+        fontweight='bold'
+    )
+
     plt.tight_layout()
 
     plt.savefig(
         'graph_10m_showdown.png',
-        dpi=300
+        dpi=300,
+        bbox_inches='tight'
     )
 
     plt.show()
