@@ -1,107 +1,15 @@
-// optimal_S_experiment.cpp
-// Part (c)(iii): Determine the optimal threshold S
-// based on average execution time of Hybrid Sort.
-
 #include <iostream>
 #include <vector>
 #include <random>
 #include <chrono>
-#include <algorithm>
 #include <iomanip>
+#include <cfloat>
+#include "sorts.cpp"
 
 using namespace std;
 
-// --------------------------------------------------
-// Insertion Sort
-// Same [start, end) convention as sorts.cpp
-// --------------------------------------------------
-
-void insertionSort(vector<int>& A, int start, int end,
-                   unsigned long long& comparisons) {
-
-    for (int i = start + 1; i < end; i++) {
-        int key = A[i];
-        int j = i - 1;
-
-        while (j >= start) {
-            comparisons++;
-
-            if (A[j] > key) {
-                A[j + 1] = A[j];
-                j--;
-            } else {
-                break;
-            }
-        }
-
-        A[j + 1] = key;
-    }
-}
-
-// --------------------------------------------------
-// Merge
-// --------------------------------------------------
-
-void merge(vector<int>& A, int start, int mid, int end,
-           vector<int>& buffer,
-           unsigned long long& comparisons) {
-
-    int i = start;
-    int j = mid;
-    int k = start;
-
-    while (i < mid && j < end) {
-        comparisons++;
-
-        if (A[i] <= A[j]) {
-            buffer[k++] = A[i++];
-        } else {
-            buffer[k++] = A[j++];
-        }
-    }
-
-    while (i < mid) {
-        buffer[k++] = A[i++];
-    }
-
-    while (j < end) {
-        buffer[k++] = A[j++];
-    }
-
-    for (int i = start; i < end; i++) {
-        A[i] = buffer[i];
-    }
-}
-
-// --------------------------------------------------
-// Hybrid Merge-Insertion Sort
-// --------------------------------------------------
-
-void hybridSort(vector<int>& A, int start, int end, int S,
-                vector<int>& buffer,
-                unsigned long long& comparisons) {
-
-    if (end - start <= S) {
-        insertionSort(A, start, end, comparisons);
-        return;
-    }
-
-    int mid = start + (end - start) / 2;
-
-    hybridSort(A, start, mid, S, buffer, comparisons);
-    hybridSort(A, mid, end, S, buffer, comparisons);
-
-    merge(A, start, mid, end, buffer, comparisons);
-}
-
-// --------------------------------------------------
-// Random dataset generator
-// --------------------------------------------------
-
-vector<int> generateRandomArray(int n, int maxValue,
-                                mt19937& rng) {
-
-    uniform_int_distribution<int> dist(1, maxValue);
+vector<int> generateRandomArray(int n, int x, mt19937& rng) {
+    uniform_int_distribution<int> dist(1, x);
 
     vector<int> data(n);
 
@@ -112,13 +20,9 @@ vector<int> generateRandomArray(int n, int maxValue,
     return data;
 }
 
-// --------------------------------------------------
-// Main C(iii) experiment
-// --------------------------------------------------
-
 int main() {
+    const int x = 10000000;
 
-    // Different input sizes, as required by C(iii)
     vector<int> sizes = {
         100000,
         500000,
@@ -127,78 +31,83 @@ int main() {
         10000000
     };
 
-    // Reasonable range of thresholds to investigate
-    vector<int> sValues = {
-        2, 4, 8, 16, 32, 64, 128
-    };
+    // Test EVERY S from 2 to 128
+    vector<int> S_values;
 
-    // Repeat each experiment to reduce timing noise
+    for (int S = 2; S <= 128; S++) {
+        S_values.push_back(S);
+    }
+
+    // Number of datasets used for each S
     const int TRIALS = 5;
 
-    // Same value range used in Part (b)
-    const int MAX_VALUE = 10000000;
-
-    // Fixed seed makes the experiment reproducible
-    const unsigned int BASE_SEED = 12345;
+    // Stores normalized performance of each S
+    // across all input sizes
+    vector<double> overallScores(S_values.size(), 0.0);
 
     cout << fixed << setprecision(3);
 
-    cout << "C(iii): Determining Optimal S\n";
-    cout << "============================================\n";
-
-    // Used to determine one overall S across input sizes
-    vector<double> totalRelativeTime(sValues.size(), 0.0);
+    cout << "C(iii): Finding Optimal S" << endl;
+    cout << "============================================" << endl;
 
     for (int n : sizes) {
 
-        cout << "\nn = " << n << "\n";
-        cout << "--------------------------------------------\n";
-        cout << "S,Average Key Comparisons,Average Time (ms)\n";
+        cout << endl;
+        cout << "n = " << n << endl;
+        cout << "--------------------------------------------" << endl;
+        cout << "S,Average Key Comparisons,Average Time (ms)" << endl;
 
-        // --------------------------------------------------
-        // Generate the datasets ONCE.
-        // Every S gets exactly the same datasets.
-        // --------------------------------------------------
+        // -------------------------------------------------
+        // Generate the datasets ONCE for this n.
+        //
+        // Every S will therefore be tested on exactly
+        // the same input arrays.
+        // -------------------------------------------------
 
         vector<vector<int>> datasets;
 
         for (int trial = 0; trial < TRIALS; trial++) {
 
-            mt19937 rng(BASE_SEED + trial);
+            mt19937 rng(12345 + trial);
 
             datasets.push_back(
-                generateRandomArray(n, MAX_VALUE, rng)
+                generateRandomArray(n, x, rng)
             );
         }
 
-        vector<double> timesForN;
+        // Store results for this input size
+        vector<double> averageTimes;
+        vector<unsigned long long> averageComparisons;
 
-        // --------------------------------------------------
-        // Test each S
-        // --------------------------------------------------
+        // -------------------------------------------------
+        // Test every S
+        // -------------------------------------------------
 
-        for (int S : sValues) {
+        for (int S : S_values) {
+
+            double totalTime = 0.0;
 
             unsigned long long totalComparisons = 0;
-            double totalTime = 0.0;
 
             for (int trial = 0; trial < TRIALS; trial++) {
 
-                // Same original input for every S
-                vector<int> A = datasets[trial];
+                // Copy happens BEFORE timing
+                vector<int> data = datasets[trial];
 
+                // Buffer allocation also happens BEFORE timing
                 vector<int> buffer(n);
 
                 unsigned long long comparisons = 0;
 
-                // Only time the sorting algorithm.
-                // Dataset generation and copying are excluded.
+                // -----------------------------------------
+                // Time ONLY Hybrid Sort
+                // -----------------------------------------
 
                 auto start =
-                    chrono::high_resolution_clock::now();
+                    chrono::steady_clock::now();
 
                 hybridSort(
-                    A,
+                    data,
                     0,
                     n,
                     S,
@@ -207,7 +116,7 @@ int main() {
                 );
 
                 auto end =
-                    chrono::high_resolution_clock::now();
+                    chrono::steady_clock::now();
 
                 double elapsed =
                     chrono::duration<double, milli>(
@@ -215,83 +124,94 @@ int main() {
                     ).count();
 
                 totalTime += elapsed;
+
                 totalComparisons += comparisons;
             }
 
-            double averageTime =
+            double avgTime =
                 totalTime / TRIALS;
 
-            unsigned long long averageComparisons =
+            unsigned long long avgComparisons =
                 totalComparisons / TRIALS;
 
-            timesForN.push_back(averageTime);
+            averageTimes.push_back(avgTime);
+            averageComparisons.push_back(avgComparisons);
 
             cout << S << ","
-                 << averageComparisons << ","
-                 << averageTime << "\n";
+                 << avgComparisons << ","
+                 << avgTime << endl;
         }
 
-        // --------------------------------------------------
-        // Normalize the times for this n.
-        //
-        // This prevents the 10-million-element experiment
-        // from dominating the smaller input sizes simply
-        // because its absolute times are larger.
-        // --------------------------------------------------
+        // -------------------------------------------------
+        // Find fastest S for THIS input size
+        // -------------------------------------------------
 
-        double bestTime =
-            *min_element(
-                timesForN.begin(),
-                timesForN.end()
-            );
+        int bestIndex = 0;
 
-        int bestIndex =
-            min_element(
-                timesForN.begin(),
-                timesForN.end()
-            ) - timesForN.begin();
+        for (int i = 1; i < (int)S_values.size(); i++) {
 
-        cout << "\nFastest S for n = "
+            if (averageTimes[i] < averageTimes[bestIndex]) {
+                bestIndex = i;
+            }
+        }
+
+        double bestTime = averageTimes[bestIndex];
+
+        cout << endl;
+
+        cout << "Fastest S for n = "
              << n
              << ": S = "
-             << sValues[bestIndex]
-             << "\n";
+             << S_values[bestIndex]
+             << " ("
+             << bestTime
+             << " ms)"
+             << endl;
 
-        for (size_t i = 0; i < sValues.size(); i++) {
+        // -------------------------------------------------
+        // Normalize performance for this n.
+        //
+        // Fastest S gets score 1.0.
+        // Others get > 1.0.
+        //
+        // This allows different n values to contribute
+        // equally to the final optimal S.
+        // -------------------------------------------------
 
-            totalRelativeTime[i] +=
-                timesForN[i] / bestTime;
+        for (int i = 0; i < (int)S_values.size(); i++) {
+
+            overallScores[i] +=
+                averageTimes[i] / bestTime;
         }
     }
 
-    // --------------------------------------------------
-    // Choose ONE S that performs well across all n.
-    //
-    // For every n:
-    //     fastest S gets relative score 1.0
-    //     slower S gets > 1.0
-    //
-    // Lowest average relative score = overall optimal S.
-    // --------------------------------------------------
+    // -------------------------------------------------
+    // Find ONE overall optimal S
+    // -------------------------------------------------
 
-    int optimalIndex = 0;
+    int overallBestIndex = 0;
 
-    for (size_t i = 1; i < sValues.size(); i++) {
+    for (int i = 1; i < (int)S_values.size(); i++) {
 
-        if (totalRelativeTime[i] <
-            totalRelativeTime[optimalIndex]) {
+        if (overallScores[i] <
+            overallScores[overallBestIndex]) {
 
-            optimalIndex = i;
+            overallBestIndex = i;
         }
     }
 
-    cout << "\n============================================\n";
+    cout << endl;
+    cout << "============================================" << endl;
 
-    cout << "Overall Optimal S = "
-         << sValues[optimalIndex]
-         << "\n";
+    cout << "OVERALL OPTIMAL S = "
+         << S_values[overallBestIndex]
+         << endl;
 
-    cout << "============================================\n";
+    cout << "Average normalized performance score = "
+         << overallScores[overallBestIndex] / sizes.size()
+         << endl;
+
+    cout << "============================================" << endl;
 
     return 0;
 }
