@@ -1,8 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <ctime>
-#include <iomanip>
 #include "sorts.cpp"
 
 using namespace std;
@@ -20,49 +18,32 @@ vector<int> generateRandomArray(int n, int x, mt19937& rng) {
 }
 
 int main() {
-
     const int n = 1000000;
     const int x = 10000000;
 
+    vector<int> S_values = {
+        2, 4, 8, 16, 32, 64, 128, 256, 512
+    };
+
     mt19937 rng(12345);
 
-    // Same fixed array for every S
-    vector<int> originalData =
-        generateRandomArray(n, x, rng);
+    // Generate ONE dataset and reuse it for every S
+    vector<int> originalData = generateRandomArray(n, x, rng);
 
-    cout << "S,Key Comparisons,CPU Time (ms)" << endl;
+    cout << "C(ii): Fixed n = " << n << endl;
+    cout << "S,Key Comparisons" << endl;
 
-    // Copy their idea: increase S gradually
-    for (int S = 5; S <= 185; S += 5) {
-
+    for (int S : S_values) {
         vector<int> data = originalData;
         vector<int> buffer(n);
 
         unsigned long long comparisons = 0;
 
-        clock_t start = clock();
+        hybridSort(data, 0, n, S, buffer, comparisons);
 
-        hybridSort(
-            data,
-            0,
-            n,
-            S,
-            buffer,
-            comparisons
-        );
-
-        clock_t end = clock();
-
-        double cpuTime =
-            1000.0 *
-            static_cast<double>(end - start) /
-            CLOCKS_PER_SEC;
-
-        cout << S << ","
-             << comparisons << ","
-             << fixed << setprecision(3)
-             << cpuTime << endl;
+        cout << S << "," << comparisons << endl;
     }
 
     return 0;
 }
+
