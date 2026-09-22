@@ -1,23 +1,22 @@
 // optimal_S_experiment.cpp
-// Part (c)(iii): Determine optimal S based on execution time.
-//
-// For each input size:
-// 1. Generate 5 fixed random datasets.
-// 2. Test every S on the SAME datasets.
-// 3. Measure Hybrid Sort execution time.
-// 4. Record average key comparisons and average execution time.
+// Part (c)(iii): Determine the optimal threshold S
+// based on average execution time of Hybrid Sort.
 
 #include <iostream>
 #include <vector>
 #include <random>
 #include <chrono>
 #include <algorithm>
+#include <iomanip>
 
-using Clock = std::chrono::high_resolution_clock;
+using namespace std;
 
-// ---------------- Insertion Sort ----------------
+// --------------------------------------------------
+// Insertion Sort
+// Same [start, end) convention as sorts.cpp
+// --------------------------------------------------
 
-void insertionSort(std::vector<int>& A, int start, int end,
+void insertionSort(vector<int>& A, int start, int end,
                    unsigned long long& comparisons) {
 
     for (int i = start + 1; i < end; i++) {
@@ -39,10 +38,12 @@ void insertionSort(std::vector<int>& A, int start, int end,
     }
 }
 
-// ---------------- Merge ----------------
+// --------------------------------------------------
+// Merge
+// --------------------------------------------------
 
-void merge(std::vector<int>& A, int start, int mid, int end,
-           std::vector<int>& buffer,
+void merge(vector<int>& A, int start, int mid, int end,
+           vector<int>& buffer,
            unsigned long long& comparisons) {
 
     int i = start;
@@ -59,21 +60,25 @@ void merge(std::vector<int>& A, int start, int mid, int end,
         }
     }
 
-    while (i < mid)
+    while (i < mid) {
         buffer[k++] = A[i++];
+    }
 
-    while (j < end)
+    while (j < end) {
         buffer[k++] = A[j++];
+    }
 
-    for (int index = start; index < end; index++) {
-        A[index] = buffer[index];
+    for (int i = start; i < end; i++) {
+        A[i] = buffer[i];
     }
 }
 
-// ---------------- Hybrid Sort ----------------
+// --------------------------------------------------
+// Hybrid Merge-Insertion Sort
+// --------------------------------------------------
 
-void hybridSort(std::vector<int>& A, int start, int end, int S,
-                std::vector<int>& buffer,
+void hybridSort(vector<int>& A, int start, int end, int S,
+                vector<int>& buffer,
                 unsigned long long& comparisons) {
 
     if (end - start <= S) {
@@ -89,14 +94,16 @@ void hybridSort(std::vector<int>& A, int start, int end, int S,
     merge(A, start, mid, end, buffer, comparisons);
 }
 
-// ---------------- Generate Random Array ----------------
+// --------------------------------------------------
+// Random dataset generator
+// --------------------------------------------------
 
-std::vector<int> generateRandomArray(int n, int maxValue,
-                                     std::mt19937& rng) {
+vector<int> generateRandomArray(int n, int maxValue,
+                                mt19937& rng) {
 
-    std::uniform_int_distribution<int> dist(1, maxValue);
+    uniform_int_distribution<int> dist(1, maxValue);
 
-    std::vector<int> data(n);
+    vector<int> data(n);
 
     for (int i = 0; i < n; i++) {
         data[i] = dist(rng);
@@ -105,86 +112,90 @@ std::vector<int> generateRandomArray(int n, int maxValue,
     return data;
 }
 
-// ---------------- Main Experiment ----------------
+// --------------------------------------------------
+// Main C(iii) experiment
+// --------------------------------------------------
 
 int main() {
 
-    // Different input sizes required for C(iii)
-    std::vector<int> sizes = {
+    // Different input sizes, as required by C(iii)
+    vector<int> sizes = {
+        100000,
+        500000,
         1000000,
         5000000,
         10000000
     };
 
-    // Candidate S values
-    std::vector<int> sValues;
+    // Reasonable range of thresholds to investigate
+    vector<int> sValues = {
+        2, 4, 8, 16, 32, 64, 128
+    };
 
-    for (int S = 2; S <= 64; S += 2) {
-        sValues.push_back(S);
-    }
+    // Repeat each experiment to reduce timing noise
+    const int TRIALS = 5;
 
-    for (int S = 70; S <= 200; S += 10) {
-        sValues.push_back(S);
-    }
-
-    const int DATASETS = 5;
-
-    // Same maximum random value used in Part B
+    // Same value range used in Part (b)
     const int MAX_VALUE = 10000000;
 
-    // Fixed seed for reproducibility
+    // Fixed seed makes the experiment reproducible
     const unsigned int BASE_SEED = 12345;
 
-    std::cout
-        << "n,S,avg_comparisons,avg_execution_time_ms\n";
+    cout << fixed << setprecision(3);
+
+    cout << "C(iii): Determining Optimal S\n";
+    cout << "============================================\n";
+
+    // Used to determine one overall S across input sizes
+    vector<double> totalRelativeTime(sValues.size(), 0.0);
 
     for (int n : sizes) {
 
-        // ------------------------------------------------
-        // Generate the datasets ONCE for this n.
-        //
-        // Every S below will therefore be tested on
-        // exactly the same five arrays.
-        // ------------------------------------------------
+        cout << "\nn = " << n << "\n";
+        cout << "--------------------------------------------\n";
+        cout << "S,Average Key Comparisons,Average Time (ms)\n";
 
-        std::vector<std::vector<int>> datasets;
+        // --------------------------------------------------
+        // Generate the datasets ONCE.
+        // Every S gets exactly the same datasets.
+        // --------------------------------------------------
 
-        datasets.reserve(DATASETS);
+        vector<vector<int>> datasets;
 
-        for (int d = 0; d < DATASETS; d++) {
+        for (int trial = 0; trial < TRIALS; trial++) {
 
-            std::mt19937 rng(BASE_SEED + d);
+            mt19937 rng(BASE_SEED + trial);
 
             datasets.push_back(
                 generateRandomArray(n, MAX_VALUE, rng)
             );
         }
 
-        // ------------------------------------------------
-        // Test every S
-        // ------------------------------------------------
+        vector<double> timesForN;
+
+        // --------------------------------------------------
+        // Test each S
+        // --------------------------------------------------
 
         for (int S : sValues) {
 
             unsigned long long totalComparisons = 0;
+            double totalTime = 0.0;
 
-            double totalTimeMs = 0.0;
+            for (int trial = 0; trial < TRIALS; trial++) {
 
-            for (int d = 0; d < DATASETS; d++) {
+                // Same original input for every S
+                vector<int> A = datasets[trial];
 
-                // Copy the SAME original dataset.
-                // Copying happens BEFORE timing starts,
-                // so it is not included in sorting time.
-
-                std::vector<int> A = datasets[d];
-
-                std::vector<int> buffer(n);
+                vector<int> buffer(n);
 
                 unsigned long long comparisons = 0;
 
-                // -------- Start timer --------
+                // Only time the sorting algorithm.
+                // Dataset generation and copying are excluded.
 
-                auto start = Clock::now();
+                auto start =
+                    chrono::high_resolution_clock::now();
 
                 hybridSort(
                     A,
@@ -195,34 +206,92 @@ int main() {
                     comparisons
                 );
 
-                auto end = Clock::now();
+                auto end =
+                    chrono::high_resolution_clock::now();
 
-                // -------- End timer --------
-
-                double elapsedMs =
-                    std::chrono::duration<double, std::milli>(
+                double elapsed =
+                    chrono::duration<double, milli>(
                         end - start
                     ).count();
 
-                totalTimeMs += elapsedMs;
-
+                totalTime += elapsed;
                 totalComparisons += comparisons;
             }
 
             double averageTime =
-                totalTimeMs / DATASETS;
+                totalTime / TRIALS;
 
             unsigned long long averageComparisons =
-                totalComparisons / DATASETS;
+                totalComparisons / TRIALS;
 
-            std::cout
-                << n << ","
-                << S << ","
-                << averageComparisons << ","
-                << averageTime
-                << "\n";
+            timesForN.push_back(averageTime);
+
+            cout << S << ","
+                 << averageComparisons << ","
+                 << averageTime << "\n";
+        }
+
+        // --------------------------------------------------
+        // Normalize the times for this n.
+        //
+        // This prevents the 10-million-element experiment
+        // from dominating the smaller input sizes simply
+        // because its absolute times are larger.
+        // --------------------------------------------------
+
+        double bestTime =
+            *min_element(
+                timesForN.begin(),
+                timesForN.end()
+            );
+
+        int bestIndex =
+            min_element(
+                timesForN.begin(),
+                timesForN.end()
+            ) - timesForN.begin();
+
+        cout << "\nFastest S for n = "
+             << n
+             << ": S = "
+             << sValues[bestIndex]
+             << "\n";
+
+        for (size_t i = 0; i < sValues.size(); i++) {
+
+            totalRelativeTime[i] +=
+                timesForN[i] / bestTime;
         }
     }
+
+    // --------------------------------------------------
+    // Choose ONE S that performs well across all n.
+    //
+    // For every n:
+    //     fastest S gets relative score 1.0
+    //     slower S gets > 1.0
+    //
+    // Lowest average relative score = overall optimal S.
+    // --------------------------------------------------
+
+    int optimalIndex = 0;
+
+    for (size_t i = 1; i < sValues.size(); i++) {
+
+        if (totalRelativeTime[i] <
+            totalRelativeTime[optimalIndex]) {
+
+            optimalIndex = i;
+        }
+    }
+
+    cout << "\n============================================\n";
+
+    cout << "Overall Optimal S = "
+         << sValues[optimalIndex]
+         << "\n";
+
+    cout << "============================================\n";
 
     return 0;
 }
