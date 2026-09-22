@@ -6,9 +6,9 @@
 void insertionSort(std::vector<int>& A, int start, int end, unsigned long long& comparisons) {
     for (int i = start + 1; i < end; i++) {
         int key = A[i];
-        int j = i -1;
+        int j = i - 1;
         while (j >= start) {
-            comparisons ++;
+            comparisons++;
             if (A[j] > key) {
                 A[j + 1] = A[j];
                 j--;
@@ -20,44 +20,39 @@ void insertionSort(std::vector<int>& A, int start, int end, unsigned long long& 
     }
 }
 
-// Merge Sort
+// Two-way Merge
 void merge(std::vector<int>& A, int start, int mid, int end, 
            std::vector<int>& buffer, unsigned long long& comparisons) {
-            int i = start;
-            int j = mid;
-            int k = start;
+    int i = start;
+    int j = mid;
+    int k = start;
 
-            while (i < mid && j < end) {
-                comparisons++;
-                if (A[i] <= A[j]) {
-                    buffer[k++] = A[i++];
-                } else {
-                    buffer[k++] = A[j++];
-                
-                }
-           }
-
-           while (i < mid) {
-                buffer[k++] = A[i++];
-           }
-
-           while (j<end) {
-                buffer[k++] = A[j++];
-           }
-
-           for (int idx = start; idx < end; ++idx) {
-                A[idx] = buffer[idx];
-           }
-        }    
-
-
-// Original Merge Sort(for Part(d), to be used for comparison)
-void originalMergeSort(std::vector<int>& A, int start, int end, 
-                      std::vector<int>& buffer, unsigned long long& comparisons) {
-    if (end - start <= S || end - start <= 1) {
-        if (end - start > 1) {
-            insertionSort(A, start, end, comparisons);
+    while (i < mid && j < end) {
+        comparisons++;
+        if (A[i] <= A[j]) {
+            buffer[k++] = A[i++];
+        } else {
+            buffer[k++] = A[j++];
         }
+    }
+
+    while (i < mid) {
+        buffer[k++] = A[i++];
+    }
+
+    while (j < end) {
+        buffer[k++] = A[j++];
+    }
+
+    for (int idx = start; idx < end; ++idx) {
+        A[idx] = buffer[idx];
+    }
+}
+
+// Original Merge Sort (for Part d)[cite: 1]
+void originalMergeSort(std::vector<int>& A, int start, int end, 
+                       std::vector<int>& buffer, unsigned long long& comparisons) {
+    if (end - start <= 1) {
         return;
     }
 
@@ -66,13 +61,17 @@ void originalMergeSort(std::vector<int>& A, int start, int end,
     originalMergeSort(A, start, mid, buffer, comparisons);
     originalMergeSort(A, mid, end, buffer, comparisons);
     merge(A, start, mid, end, buffer, comparisons);
-    }
+}
 
-// Hybrid Sort
+// Hybrid Sort (for Part a)[cite: 1]
 void hybridSort(std::vector<int>& A, int start, int end, int S, 
                 std::vector<int>& buffer, unsigned long long& comparisons) {
-    if (end - start <= S) {
-        insertionSort(A, start, end, comparisons);
+    // Switch to Insertion Sort when subarray size <= S[cite: 1]
+    // (end - start <= 1 handles empty or single-element subarrays safely even if S <= 0)
+    if (end - start <= S || end - start <= 1) {
+        if (end - start > 1) {
+            insertionSort(A, start, end, comparisons);
+        }
         return;
     }
 
@@ -90,5 +89,4 @@ bool isSorted(const std::vector<int>& arr) {
     }
     return true;
 }
-
 
