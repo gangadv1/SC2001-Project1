@@ -26,22 +26,20 @@ int main() {
 
     mt19937 rng(12345);
 
-    // Generate ONE original dataset.
-    // Every S is tested on exactly the same data.
+    // Same fixed array for every S
     vector<int> originalData =
         generateRandomArray(n, x, rng);
 
     cout << "S,Key Comparisons,CPU Time (ms)" << endl;
 
-    // Consecutive S values reveal the staircase pattern.
-    for (int S = 1; S <= 64; S++) {
+    // Copy their idea: increase S gradually
+    for (int S = 5; S <= 185; S += 5) {
 
         vector<int> data = originalData;
         vector<int> buffer(n);
 
         unsigned long long comparisons = 0;
 
-        // Measure CPU time only for Hybrid Sort.
         clock_t start = clock();
 
         hybridSort(
