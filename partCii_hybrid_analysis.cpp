@@ -2,6 +2,7 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <algorithm>
 #include "sorts.cpp"
 
 using namespace std;
@@ -20,7 +21,7 @@ int main() {
     const int n = 1000000;
     const int x = 10000000;
 
-    // Exact tested values of S from the reference graph[cite: 5]
+    // Test points matching the reference[cite: 5]
     vector<int> S_values;
     for (int s = 1; s <= 32; s++) {
         S_values.push_back(s);
@@ -30,17 +31,14 @@ int main() {
     S_values.push_back(64);
 
     mt19937 rng(12345);
-
-    // Reuse the exact same array across all S values
     vector<int> originalData = generateRandomArray(n, x, rng);
     vector<int> buffer(n);
 
     cout << "S,Key Comparisons,CPU Time (ms)" << endl;
 
     for (int S : S_values) {
-        // Average over 3 runs to stabilize runtime spikes while maintaining true behavior
-        const int TRIALS = 3;
-        double totalTime = 0;
+        const int TRIALS = 5;
+        vector<double> times;
         unsigned long long comparisons = 0;
 
         for (int t = 0; t < TRIALS; t++) {
@@ -51,10 +49,15 @@ int main() {
             hybridSort(data, 0, n, S, buffer, comparisons);
             auto end = high_resolution_clock::now();
 
-            totalTime += duration_cast<nanoseconds>(end - start).count() / 1e6;
+            double durationMs = duration_cast<nanoseconds>(end - start).count() / 1e6;
+            times.push_back(durationMs);
         }
 
-        cout << S << "," << comparisons << "," << (totalTime / TRIALS) << endl;
+        // Use median to completely ignore rogue OS spikes
+        sort(times.begin(), times.end());
+        double medianTime = times[TRIALS / 2];
+
+        cout << S << "," << comparisons << "," << medianTime << endl;
     }
 
     return 0;
