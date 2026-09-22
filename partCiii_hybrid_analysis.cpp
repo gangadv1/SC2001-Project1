@@ -1,14 +1,11 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <ctime>
-#include <iomanip>
-#include <limits>
+#include <climits>
 #include "sorts.cpp"
 
 using namespace std;
 
-// Generate an array of n random integers in the range [1, x]
 vector<int> generateRandomArray(int n, int x, mt19937& rng) {
     uniform_int_distribution<int> dist(1, x);
 
@@ -24,10 +21,6 @@ vector<int> generateRandomArray(int n, int x, mt19937& rng) {
 int main() {
     const int x = 10000000;
 
-    // More trials to reduce timing noise
-    const int trials = 10;
-
-    // Different input sizes for studying the optimal threshold
     vector<int> sizes = {
         100000,
         500000,
@@ -36,87 +29,53 @@ int main() {
         10000000
     };
 
-    // Refined search around the efficient threshold region
     vector<int> S_values = {
-        16, 20, 24, 28, 32, 36, 40, 44, 48
+        2, 4, 8, 16, 32, 64, 128, 256, 512
     };
 
-    cout << fixed << setprecision(6);
+    mt19937 rng(12345);
 
-    cout << "C(iii): Refined Hybrid Sort threshold analysis" << endl;
-    cout << "Trials per configuration = " << trials << endl;
-    cout << endl;
-
-    cout << "n,S,Average Key Comparisons,Average CPU Time (s)"
-         << endl;
+    cout << "C(iii): Finding optimal S" << endl;
+    cout << "n,S,Key Comparisons" << endl;
 
     for (int n : sizes) {
-        double bestTime = numeric_limits<double>::max();
+        // Generate ONE dataset for this n
+        // and reuse it for every S
+        vector<int> originalData = generateRandomArray(n, x, rng);
+
         int bestS = 0;
+        unsigned long long bestComparisons = ULLONG_MAX;
 
         for (int S : S_values) {
-            unsigned long long totalComparisons = 0;
-            double totalCPUTime = 0.0;
+            vector<int> data = originalData;
+            vector<int> buffer(n);
 
-            /*
-             * Reset the random generator for every S.
-             * Therefore, every threshold is tested using
-             * exactly the same sequence of input arrays.
-             */
-            mt19937 testRng(12345 + n);
+            unsigned long long comparisons = 0;
 
-            for (int trial = 0; trial < trials; trial++) {
-                vector<int> originalData =
-                    generateRandomArray(n, x, testRng);
+            hybridSort(
+                data,
+                0,
+                n,
+                S,
+                buffer,
+                comparisons
+            );
 
-                vector<int> data = originalData;
-                vector<int> buffer(n);
-
-                unsigned long long comparisons = 0;
-
-                clock_t start = clock();
-
-                hybridSort(
-                    data,
-                    0,
-                    n,
-                    S,
-                    buffer,
-                    comparisons
-                );
-
-                clock_t end = clock();
-
-                double cpuTime =
-                    static_cast<double>(end - start) /
-                    CLOCKS_PER_SEC;
-
-                totalComparisons += comparisons;
-                totalCPUTime += cpuTime;
-            }
-
-            double averageComparisons =
-                static_cast<double>(totalComparisons) / trials;
-
-            double averageCPUTime =
-                totalCPUTime / trials;
-
+            // Output every result
             cout << n << ","
                  << S << ","
-                 << averageComparisons << ","
-                 << averageCPUTime
-                 << endl;
+                 << comparisons << endl;
 
-            if (averageCPUTime < bestTime) {
-                bestTime = averageCPUTime;
+            // Track the S with the fewest key comparisons
+            if (comparisons < bestComparisons) {
+                bestComparisons = comparisons;
                 bestS = S;
             }
         }
 
         cout << "Best for n=" << n
              << ": S=" << bestS
-             << ", Average CPU Time="
-             << bestTime << " s"
+             << ", comparisons=" << bestComparisons
              << endl;
 
         cout << endl;
