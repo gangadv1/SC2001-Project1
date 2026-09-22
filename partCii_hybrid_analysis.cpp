@@ -20,14 +20,13 @@ int main() {
     const int n = 1000000;
     const int x = 10000000;
 
-    // Granular range to match the reference graph points
+    // Granular integer values up to 32, then extending up to 256
     vector<int> S_values;
     for (int s = 1; s <= 32; s++) {
         S_values.push_back(s);
     }
-    S_values.push_back(40);
-    S_values.push_back(50);
-    S_values.push_back(64);
+    vector<int> extended = {40, 50, 64, 80, 96, 128, 160, 200, 256};
+    S_values.insert(S_values.end(), extended.begin(), extended.end());
 
     mt19937 rng(12345);
 
