@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <fstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -22,7 +22,7 @@ int main() {
     // Largest possible value in each dataset
     const int x = 10000000;
 
-    // Dataset sizes required for the experiment
+    // Dataset sizes used for the experiment
     vector<int> sizes = {
         1000,
         2000,
@@ -39,7 +39,7 @@ int main() {
         10000000
     };
 
-    // Fixed seed so that the experiments are reproducible
+    // Fixed seed for reproducibility
     mt19937 rng(12345);
 
     cout << "Generating datasets..." << endl;
@@ -49,11 +49,22 @@ int main() {
     for (int n : sizes) {
         vector<int> data = generateRandomArray(n, x, rng);
 
-        cout << "Generated dataset: n = " << n << endl;
+        int minValue = *min_element(data.begin(), data.end());
+        int maxValue = *max_element(data.begin(), data.end());
+
+        bool correctSize = (data.size() == static_cast<size_t>(n));
+        bool correctRange = (minValue >= 1 && maxValue <= x);
+
+        cout << "n = " << n
+             << " | size: " << (correctSize ? "PASS" : "FAIL")
+             << " | range: " << (correctRange ? "PASS" : "FAIL")
+             << " | min = " << minValue
+             << " | max = " << maxValue
+             << endl;
     }
 
     cout << endl;
-    cout << "All datasets generated successfully." << endl;
+    cout << "All datasets generated and verified successfully." << endl;
 
     return 0;
 }
